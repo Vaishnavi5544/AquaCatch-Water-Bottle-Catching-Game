@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Don't Spill It! 💧</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap');
+
+  :root {
+    --blue: #1da1f2;
+    --dark-blue: #0d6efd;
+    --light-blue: #cfe9ff;
+    --sky: #e8f6ff;
+    --splash: #7dd3fc;
+    --green: #22c55e;
+    --red: #ef4444;
+    --yellow: #fbbf24;
+    --desk: #c2855a;
+    --desk-dark: #8b5e3c;
+    --bg: #f0f9ff;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: var(--bg);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Animated wavy background */
+  body::before {
+    content: '';
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 180px;
+    background: linear-gradient(180deg, transparent, #bae6fd55);
+    animation: wavePulse 3s ease-in-out infinite alternate;
+    pointer-events: none;
+    z-index: 0;
+  }
+  @keyframes wavePulse { to { height: 220px; opacity: 0.6; } }
+
+  h1 {
+    font-family: 'Fredoka One', cursive;
+    font-size: clamp(1.8rem, 5vw, 3rem);
+    color: var(--dark-blue);
+    margin-top: 18px;
+    letter-spacing: 1px;
+    text-shadow: 2px 2px 0 #bae6fd;
+    text-align: center;
+  }
+
+  .subtitle {
+    font-size: 0.95rem;
+    color: #64748b;
+    font-weight: 600;
+    margin-bottom: 6px;
+    text-align: center;
+  }
+
+  /* Score bar */
+  .scorebar {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+    background: white;
+    border: 3px solid var(--light-blue);
+    border-radius: 50px;
+    padding: 8px 28px;
+    margin: 8px 0 4px;
+    box-shadow: 0 4px 14px #bae6fd88;
+    font-weight: 800;
+    font-size: 1.1rem;
+    color: #1e3a5f;
+  }
+  .scorebar span { color: var(--dark-blue); font-size: 1.3rem; }
+  .timer-wrap { color: #ef4444; }
+
+  /* Game canvas area */
+  #gameArea {
+    position: relative;
+    width: min(420px, 95vw);
+    height: 420px;
+    background: linear-gradient(180deg, #e0f2fe 60%, #bae6fd 100%);
+    border-radius: 20px;
+    border: 3px solid #7dd3fc;
+    overflow: hidden;
+    box-shadow: 0 8px 30px #7dd3fc88;
+    margin: 6px 0;
+    cursor: none;
+  }
+
+  /* Desk (shelf) */
+  #desk {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 54px;
+    background: linear-gradient(180deg, var(--desk) 0%, var(--desk-dark) 100%);
+    border-top: 4px solid #e2a06f;
+    border-radius: 0 0 18px 18px;
+  }
+  #desk::before {
+    content: '';
+    position: absolute;
+    top: -3px; left: 0; right: 0;
+    height: 8px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 50% 50% 0 0 / 0 0 8px 8px;
+  }
+
+  /* Water bottle holder (player) */
+  #holder {
+    position: absolute;
+    bottom: 54px;
+    width: 70px;
+    height: 90px;
+    transform: translateX(-50%);
+    transition: left 0.05s;
+    z-index: 10;
+  }
+
+  /* Falling items */
+  .item {
+    position: absolute;
+    font-size: 2rem;
+    transform: translateX(-50%);
+    user-select: none;
+    transition: top 0.016s linear;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+  }
+
+  /* Splash effect */
+  .splash {
+    position: absolute;
+    font-size: 2.4rem;
+    pointer-events: none;
+    animation: splashAnim 0.7s ease-out forwards;
+    z-index: 20;
+  }
+  @keyframes splashAnim {
+    0%   { transform: translateX(-50%) scale(0.5); opacity: 1; }
+    60%  { transform: translateX(-50%) scale(1.6); opacity: 0.8; }
+    100% { transform: translateX(-50%) scale(2.2) translateY(-20px); opacity: 0; }
+  }
+
+  /* Catch effect */
+  .catch-pop {
+    position: absolute;
+    font-size: 1.1rem;
+    font-family: 'Fredoka One', cursive;
+    color: var(--green);
+    pointer-events: none;
+    animation: popUp 0.7s ease-out forwards;
+    z-index: 20;
+    white-space: nowrap;
+  }
+  @keyframes popUp {
+    0%   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-50px) scale(1.3); }
+  }
+
+  /* Lives display */
+  #lives { font-size: 1.5rem; letter-spacing: 3px; }
+
+  /* Screens */
+  .screen {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(160deg, #e0f2fedd, #bae6fddd);
+    z-index: 100;
+    border-radius: 17px;
+    gap: 14px;
+    padding: 20px;
+    text-align: center;
+  }
+
+  .screen h2 {
+    font-family: 'Fredoka One', cursive;
+    font-size: 2.2rem;
+    color: var(--dark-blue);
+    text-shadow: 1px 2px 0 #93c5fd;
+  }
+  .screen p {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #334155;
+    line-height: 1.5;
+    max-width: 320px;
+  }
+  .screen .big-emoji { font-size: 4rem; }
+
+  .btn {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.25rem;
+    padding: 12px 36px;
+    border: none;
+    border-radius: 50px;
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 4px 14px #3b82f655;
+    transition: transform 0.15s, box-shadow 0.15s;
+    margin-top: 6px;
+  }
+  .btn:hover { transform: translateY(-2px) scale(1.04); box-shadow: 0 8px 20px #3b82f688; }
+  .btn:active { transform: scale(0.97); }
+
+  .btn-secondary {
+    background: linear-gradient(135deg, #22c55e, #15803d);
+    box-shadow: 0 4px 14px #22c55e55;
+  }
+
+  .high-score-badge {
+    background: var(--yellow);
+    color: #78350f;
+    font-weight: 800;
+    font-size: 0.95rem;
+    padding: 6px 18px;
+    border-radius: 50px;
+    border: 2px solid #f59e0b;
+  }
+
+  #finalScore {
+    font-family: 'Fredoka One', cursive;
+    font-size: 2.8rem;
+    color: var(--dark-blue);
+  }
+
+  /* Instructions strip below game */
+  .instructions {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #475569;
+    margin-top: 4px;
+    text-align: center;
+    background: white;
+    border-radius: 30px;
+    padding: 6px 20px;
+    border: 2px solid #e2e8f0;
+  }
+
+  /* Project credit */
+  .credit {
+    position: fixed;
+    bottom: 10px;
+    font-size: 0.78rem;
+    color: #94a3b8;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    z-index: 5;
+  }
+</style>
+</head>
+<body>
+
+<h1>💧 Don't Spill It!</h1>
+<p class="subtitle">Move the holder — catch the bottles, dodge the splashes!</p>
+
+<div class="scorebar">
+  <div>Score: <span id="score">0</span></div>
+  <div>Best: <span id="best">0</span></div>
+  <div class="timer-wrap">⏱ <span id="timer">30</span>s</div>
+  <div id="lives">💙💙💙</div>
+</div>
+
+<div id="gameArea">
+  <!-- Start screen -->
+  <div class="screen" id="startScreen">
+    <div class="big-emoji">💧🍶</div>
+    <h2>Don't Spill It!</h2>
+    <p>Water bottles are falling everywhere!<br>
+       Catch the 💧 bottles with your holder.<br>
+       Avoid the 💥 splashes — they cost a life!<br><br>
+       <b>Move your mouse (or finger) to steer.</b></p>
+    <button class="btn" onclick="startGame()">▶ Play!</button>
+  </div>
+
+  <!-- Game over screen -->
+  <div class="screen" id="overScreen" style="display:none">
+    <div class="big-emoji" id="overEmoji">😬</div>
+    <h2 id="overTitle">Oh no!</h2>
+    <div id="finalScore">0 pts</div>
+    <div class="high-score-badge" id="hsLabel">🏆 High Score: 0</div>
+    <p id="overMsg">Keep practicing — the bottles need you!</p>
+    <button class="btn btn-secondary" onclick="startGame()">🔄 Play Again</button>
+  </div>
+
+  <div id="desk"></div>
+  <div id="holder">
+    <!-- Water bottle holder: cradle + bottle sitting inside -->
+    <svg width="70" height="90" viewBox="0 0 70 90" xmlns="http://www.w3.org/2000/svg">
+
+      <!-- === HOLDER BRACKET (drawn behind bottle) === -->
+      <!-- Base platform -->
+      <rect x="4" y="72" width="62" height="9" rx="3" fill="#1e40af"/>
+      <!-- Left upright -->
+      <rect x="4" y="30" width="9" height="44" rx="3" fill="#2563eb"/>
+      <!-- Right upright -->
+      <rect x="57" y="30" width="9" height="44" rx="3" fill="#2563eb"/>
+      <!-- Top bar -->
+      <rect x="4" y="28" width="62" height="9" rx="3" fill="#3b82f6"/>
+      <!-- Left strap / ring (horizontal bar partway down) -->
+      <rect x="4" y="50" width="9" height="6" rx="2" fill="#1d4ed8"/>
+      <!-- Right strap / ring -->
+      <rect x="57" y="50" width="9" height="6" rx="2" fill="#1d4ed8"/>
+
+      <!-- === WATER BOTTLE (straight cylinder, NOT vase-shaped) === -->
+      <!-- Bottle body — straight rectangle, only very slight rounding at bottom -->
+      <rect x="18" y="28" width="34" height="48" rx="3" fill="#bfdbfe" stroke="#93c5fd" stroke-width="1.5"/>
+      <!-- Water fill inside bottle -->
+      <rect x="19" y="50" width="32" height="25" rx="0" fill="#38bdf8" opacity="0.55"/>
+      <!-- Water line -->
+      <rect x="19" y="49" width="32" height="3" fill="#7dd3fc" opacity="0.8"/>
+      <!-- Shine on bottle -->
+      <rect x="22" y="31" width="6" height="22" rx="3" fill="white" opacity="0.25"/>
+      <!-- Narrow neck -->
+      <rect x="26" y="19" width="18" height="11" rx="2" fill="#93c5fd" stroke="#7dd3fc" stroke-width="1"/>
+      <!-- Cap (small, flat, clearly a cap) -->
+      <rect x="29" y="12" width="12" height="9" rx="2" fill="#1d4ed8" stroke="#1e3a8a" stroke-width="1"/>
+
+    </svg>
+  </div>
+</div>
+
+<p class="instructions">🖱 Move mouse left/right · 📱 Tap/drag on mobile</p>
+<p class="credit">Made for the Water Bottle Holder Culmination Project 🎓</p>
+
+<script>
+  const gameArea = document.getElementById('gameArea');
+  const holderEl = document.getElementById('holder');
+  const scoreEl = document.getElementById('score');
+  const bestEl  = document.getElementById('best');
+  const timerEl = document.getElementById('timer');
+  const livesEl = document.getElementById('lives');
+  const startScreen = document.getElementById('startScreen');
+  const overScreen  = document.getElementById('overScreen');
+
+  const W = () => gameArea.offsetWidth;
+  const H = () => gameArea.offsetHeight;
+  const DESK_H = 54;
+  const HOLDER_W = 64;
+
+  let holderX = 200;
+  let items = [];
+  let score = 0;
+  let lives = 3;
+  let best = 0;
+  let timeLeft = 30;
+  let gameRunning = false;
+  let raf, timerInterval;
+  let spawnInterval = 1200;
+  let lastSpawn = 0;
+  let frameTime = 0;
+
+  const CATCHABLES = ['💧','🍼','🥤','🧴'];
+  const BADS = ['💥','🌊','☔'];
+
+  function lerp(a,b,t){return a+(b-a)*t;}
+
+  function updateHolder(x) {
+    holderX = Math.max(HOLDER_W/2, Math.min(W() - HOLDER_W/2, x));
+    holderEl.style.left = holderX + 'px';
+  }
+
+  // Mouse
+  gameArea.addEventListener('mousemove', e => {
+    if (!gameRunning) return;
+    const r = gameArea.getBoundingClientRect();
+    updateHolder(e.clientX - r.left);
+  });
+
+  // Touch
+  gameArea.addEventListener('touchmove', e => {
+    if (!gameRunning) return;
+    e.preventDefault();
+    const r = gameArea.getBoundingClientRect();
+    updateHolder(e.touches[0].clientX - r.left);
+  }, { passive: false });
+
+  gameArea.addEventListener('touchstart', e => {
+    if (!gameRunning) return;
+    const r = gameArea.getBoundingClientRect();
+    updateHolder(e.touches[0].clientX - r.left);
+  });
+
+  function spawnItem(now) {
+    const isBad = Math.random() < 0.28;
+    const emoji = isBad
+      ? BADS[Math.floor(Math.random()*BADS.length)]
+      : CATCHABLES[Math.floor(Math.random()*CATCHABLES.length)];
+    const x = 40 + Math.random() * (W() - 80);
+    const speed = 2.2 + Math.random() * 1.8 + (30 - timeLeft) * 0.06;
+
+    const el = document.createElement('div');
+    el.className = 'item';
+    el.textContent = emoji;
+    el.style.left = x + 'px';
+    el.style.top = '-40px';
+    gameArea.appendChild(el);
+
+    items.push({ el, x, y: -40, speed, isBad });
+  }
+
+  function checkCollision(item) {
+    const holderTop = H() - DESK_H - 80;
+    const holderBottom = H() - DESK_H - 2;
+    if (item.y + 30 >= holderTop && item.y + 10 <= holderBottom) {
+      if (Math.abs(item.x - holderX) < HOLDER_W / 2 + 10) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function popEffect(x, y, text, color) {
+    const el = document.createElement('div');
+    el.className = 'catch-pop';
+    el.textContent = text;
+    el.style.left = x + 'px';
+    el.style.top  = y + 'px';
+    el.style.color = color;
+    gameArea.appendChild(el);
+    setTimeout(() => el.remove(), 700);
+  }
+
+  function splashEffect(x, y) {
+    const el = document.createElement('div');
+    el.className = 'splash';
+    el.textContent = '💦';
+    el.style.left = x + 'px';
+    el.style.top  = y + 'px';
+    gameArea.appendChild(el);
+    setTimeout(() => el.remove(), 700);
+
+    // Screen flash
+    gameArea.style.background = 'linear-gradient(180deg, #fecdd3 60%, #fca5a5 100%)';
+    setTimeout(() => gameArea.style.background = 'linear-gradient(180deg, #e0f2fe 60%, #bae6fd 100%)', 300);
+  }
+
+  function updateLives() {
+    livesEl.textContent = '💙'.repeat(Math.max(0, lives));
+  }
+
+  function gameLoop(ts) {
+    if (!gameRunning) return;
+    const dt = ts - frameTime;
+    frameTime = ts;
+
+    if (ts - lastSpawn > spawnInterval) {
+      spawnItem(ts);
+      lastSpawn = ts;
+      spawnInterval = Math.max(600, 1200 - (30 - timeLeft) * 18);
+    }
+
+    for (let i = items.length - 1; i >= 0; i--) {
+      const item = items[i];
+      item.y += item.speed * (dt / 16);
+      item.el.style.top = item.y + 'px';
+
+      if (checkCollision(item)) {
+        item.el.remove();
+        items.splice(i, 1);
+        if (item.isBad) {
+          lives--;
+          updateLives();
+          splashEffect(item.x, item.y);
+          popEffect(item.x, item.y - 20, '-1 Life! 😱', '#ef4444');
+          if (lives <= 0) { endGame(false); return; }
+        } else {
+          const pts = item.el.textContent === '💧' ? 10 : 5;
+          score += pts;
+          scoreEl.textContent = score;
+          popEffect(item.x, item.y - 20, `+${pts}`, '#22c55e');
+        }
+        continue;
+      }
+
+      if (item.y > H()) {
+        item.el.remove();
+        items.splice(i, 1);
+        if (!item.isBad) {
+          lives--;
+          updateLives();
+          splashEffect(item.x, H() - DESK_H - 10);
+          popEffect(item.x, H() - DESK_H - 50, 'Missed! 💦', '#f97316');
+          if (lives <= 0) { endGame(false); return; }
+        }
+      }
+    }
+
+    raf = requestAnimationFrame(gameLoop);
+  }
+
+  function startGame() {
+    startScreen.style.display = 'none';
+    overScreen.style.display  = 'none';
+
+    // Clear old items
+    items.forEach(it => it.el.remove());
+    items = [];
+
+    score = 0; lives = 3; timeLeft = 30;
+    scoreEl.textContent = '0';
+    timerEl.textContent = '30';
+    updateLives();
+    updateHolder(W() / 2);
+    gameRunning = true;
+    lastSpawn = 0;
+    spawnInterval = 1200;
+    frameTime = performance.now();
+
+    clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+      timeLeft--;
+      timerEl.textContent = timeLeft;
+      if (timeLeft <= 0) { endGame(true); }
+    }, 1000);
+
+    raf = requestAnimationFrame(gameLoop);
+  }
+
+  function endGame(timeUp) {
+    gameRunning = false;
+    cancelAnimationFrame(raf);
+    clearInterval(timerInterval);
+
+    items.forEach(it => it.el.remove());
+    items = [];
+
+    const newBest = score > best;
+    if (newBest) best = score;
+    bestEl.textContent = best;
+
+    document.getElementById('finalScore').textContent = score + ' pts';
+    document.getElementById('hsLabel').textContent = '🏆 Best: ' + best + ' pts';
+
+    if (timeUp) {
+      document.getElementById('overEmoji').textContent = score >= 100 ? '🏆' : '🎉';
+      document.getElementById('overTitle').textContent  = score >= 100 ? 'Amazing!' : 'Time\'s Up!';
+      document.getElementById('overMsg').textContent    = score >= 100
+        ? 'You\'re a bottle-catching legend! 🌟'
+        : 'Great job keeping the classroom dry! 💧';
+    } else {
+      document.getElementById('overEmoji').textContent = '😬';
+      document.getElementById('overTitle').textContent  = 'Oh no, it spilled!';
+      document.getElementById('overMsg').textContent    = 'The classroom is WET! Quick, try again! 💦';
+    }
+
+    overScreen.style.display = 'flex';
+  }
+</script>
+</body>
+</html>
